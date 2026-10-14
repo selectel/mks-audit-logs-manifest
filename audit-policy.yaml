@@ -3,6 +3,7 @@ kind: Policy
 # Don't generate audit events for all requests in RequestReceived stage.
 omitStages:
   - "RequestReceived"
+omitManagedFields: true
 rules:
   # The following requests were manually identified as high-volume and low-risk,
   # so drop them.
@@ -62,18 +63,20 @@ rules:
   # Get repsonses can be large; skip them.
   - level: None
     verbs: ["get", "list", "watch"]
-    resources:
-      - username: "system:serviceaccount:kube-system:resourcequota-controller"
-  # New
-  # - level: None
-  #   verbs: ["get"]
-  #   resources:
-  #       resources: ["leases"]
+    users: ["system:serviceaccount:kube-system:resourcequota-controller"]
+  ## Don't log lease reads (kubelet heartbeats) - high volume, low risk.
+  #- level: None
+  #  verbs: ["get"]
+  #  resources:
+  #    - group: "coordination.k8s.io"
+  #      resources: ["leases"]
   - level: Request
     verbs: ["get", "list", "watch"]
     resources:
       - group: "" # core
       - group: "admissionregistration.k8s.io"
+      - group: "apiextensions.k8s.io"
+      - group: "apiregistration.k8s.io"
       - group: "apps"
       - group: "authentication.k8s.io"
       - group: "authorization.k8s.io"
@@ -81,6 +84,7 @@ rules:
       - group: "batch"
       - group: "certificates.k8s.io"
       - group: "extensions"
+      - group: "metrics.k8s.io"
       - group: "networking.k8s.io"
       - group: "policy"
       - group: "rbac.authorization.k8s.io"
@@ -89,20 +93,20 @@ rules:
   # Log deployment changes at RequestResponse level
   - level: RequestResponse
     resources:
-    - group: ""
-      resources: ["deployments"]
+      - group: "apps"
+        resources: ["deployments"]
   # Log service changes at metadata level
   - level: Metadata
     resources:
-    - group: ""
-      resources: ["services"]
+      - group: ""
+        resources: ["services"]
 
-  # Secrets, ConfigMaps, and TokenReviews can contain sensitive & binary data,
-  # so only log at the Metadata level.
+  # Secrets, ConfigMaps, ServiceAccount tokens, and TokenReviews can contain
+  # sensitive & binary data, so only log at the Metadata level.
   - level: Metadata
     resources:
       - group: "" # core
-        resources: ["secrets", "configmaps"]
+        resources: ["secrets", "configmaps", "serviceaccounts/token"]
       - group: authentication.k8s.io
         resources: ["tokenreviews"]
 
